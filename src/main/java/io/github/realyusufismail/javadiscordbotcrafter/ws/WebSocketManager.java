@@ -1,8 +1,13 @@
 package io.github.realyusufismail.javadiscordbotcrafter.ws;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.neovisionaries.ws.client.*;
 import io.github.realyusufismail.javadiscordbotcrafter.DiscordWrapperInfo;
 import io.github.realyusufismail.javadiscordbotcrafter.ws.util.GateWayIntent;
+import io.github.realyusufismail.javadiscordbotcrafter.ws.util.OpCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +17,8 @@ import java.util.Map;
 
 public class WebSocketManager extends WebSocketAdapter implements WebSocketListener {
     private final Logger logger = LoggerFactory.getLogger(WebSocketManager.class);
+    private final JsonNodeFactory jsonNodeFactory = JsonNodeFactory.instance;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private WebSocket webSocket;
 
@@ -19,6 +26,7 @@ public class WebSocketManager extends WebSocketAdapter implements WebSocketListe
     private String resumeUrl;
 
     private String sessionId;
+    private int sequenceNumber;
 
 
     // You will need a token and set up gateway intents
@@ -63,11 +71,66 @@ public class WebSocketManager extends WebSocketAdapter implements WebSocketListe
         }
     }
 
+    @Override
+    public void onTextMessage(WebSocket websocket, String text) throws Exception {
+        System.out.println(text);
+
+        JsonNode payload = objectMapper.readTree(text);
+
+        if (payload.hasNonNull("s")) {
+            sequenceNumber = payload.get("s").asInt();
+        }
+
+        JsonNode data = payload.get("d");
+        int opCode = payload.get("op").asInt();
+        onOpCode(opCode, data, payload);
+    }
+
+    private void onOpCode(int opCode, JsonNode data, JsonNode payload) {
+        OpCode code = OpCode.fromValue(opCode);
+
+        switch (code) {
+            case HELLO -> {
+                int heartbeatInterval = data.get("heartbeat_interval").asInt();
+
+            }
+            case DISPATCH -> {
+                String event = payload.get("t").asText();
+            }
+            case INVALID_SESSION -> {
+                sessionId = null;
+                resumeUrl = data.get("url").asText();
+                // TODO : Handle invalid session
+            }
+        }
+    }
+
     private void sendIdentify() {
-        // TODO : Send identify payload
+        ObjectNode payload = jsonNodeFactory.objectNode()
+                .put("token", token)
+                .put("intents", GateWayIntent.getBitmask(intents))
+                .set("properties", jsonNodeFactory.objectNode()
+                        .put("os", System.getProperty("os.name"))
+                        .put("browser", "JavaDiscordBotCrafter")
+                        .put("device", "JavaDiscordBotCrafter"));
+
+        JsonNode identify = jsonNodeFactory.objectNode()
+                .put("op", OpCode.IDENTIFY.getValue())
+                .set("d", payload);
+
+        webSocket.sendText(identify.toString());
     }
 
     private void sendResume() {
-        // TODO : Send resume payload
+        ObjectNode payload = jsonNodeFactory.objectNode()
+                .put("token", token)
+                .put("session_id", sessionId)
+                .put("seq", sequenceNumber);
+
+        JsonNode resume = jsonNodeFactory.objectNode()
+                .put("op", OpCode.RESUME.getValue())
+                .set("d", payload);
+
+        webSocket.sendText(resume.toString());
     }
 }
