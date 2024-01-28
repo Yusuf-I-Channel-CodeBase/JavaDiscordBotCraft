@@ -1,9 +1,5 @@
 package io.github.realyusufismail.javadiscordbotcrafter.ws;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.neovisionaries.ws.client.*;
 import io.github.realyusufismail.javadiscordbotcrafter.DiscordWrapperInfo;
 import io.github.realyusufismail.javadiscordbotcrafter.ws.util.GateWayIntent;
@@ -16,8 +12,6 @@ import java.util.Map;
 
 public class WebSocketManager extends WebSocketAdapter implements WebSocketListener {
     private final Logger logger = LoggerFactory.getLogger(WebSocketManager.class);
-    private final JsonNodeFactory jsonNodeFactory = JsonNodeFactory.instance;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private WebSocket webSocket;
 
@@ -25,7 +19,6 @@ public class WebSocketManager extends WebSocketAdapter implements WebSocketListe
     private String resumeUrl;
 
     private String sessionId;
-    private int sequenceNumber;
 
 
     // You will need a token and set up gateway intents
@@ -70,53 +63,11 @@ public class WebSocketManager extends WebSocketAdapter implements WebSocketListe
         }
     }
 
-    @Override
-    public void onTextMessage(WebSocket websocket, String text) throws Exception {
-        logger.info("Received message: {}", text);
-
-        JsonNode payload = objectMapper.readTree(text);
-
-        if (payload.hasNonNull("s")) {
-            sequenceNumber = payload.get("s").asInt();
-        }
-
-        JsonNode data = payload.get("d");
-        int opCode = payload.get("op").asInt();
-        onOpCode(opCode, data);
-    }
-
-    private void onOpCode(int opCode, JsonNode data) {
-        
-    }
-
     private void sendIdentify() {
-        ObjectNode data = jsonNodeFactory.objectNode()
-                .put("token", token)
-                .put("intents", GateWayIntent.getBitmask(intents))
-                .set("properties", jsonNodeFactory.objectNode()
-                        .put("os", System.getProperty("os.name"))
-                        .put("browser", "Java Discord Bot Crafter")
-                        .put("device", "Java Discord Bot Crafter")
-                );
-
-        JsonNode jsonNode = jsonNodeFactory.objectNode()
-                .put("op", 2)
-                .set("d", data);
-
-        webSocket.sendText(jsonNode.toString());
+        // TODO : Send identify payload
     }
 
     private void sendResume() {
-        ObjectNode objectNode =
-                jsonNodeFactory.objectNode()
-                        .put("token", token)
-                        .put("session_id", sessionId)
-                        .put("seq", sequenceNumber);
-
-        JsonNode jsonNode = jsonNodeFactory.objectNode()
-                .put("op", 6)
-                .set("d", objectNode);
-
-        webSocket.sendText(jsonNode.toString());
+        // TODO : Send resume payload
     }
 }
